@@ -3,10 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createYamlPlayer } from '@/create-yaml-player';
 import {
+  type YamlPlayerSnapshotHandler,
   runYamlCase,
   runYamlCaseResult,
   runYamlCaseResultWithSnapshots,
 } from '@/framework/yaml-case';
+import type { ScriptPlayerTaskStatus } from '@midscene/core';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('@/create-yaml-player', () => ({
@@ -54,18 +56,21 @@ describe('runYamlCase', () => {
   });
 
   test('reports task names before and after the YAML player runs', async () => {
+    const taskStatusList: ScriptPlayerTaskStatus[] = [
+      { name: 'login', status: 'init', totalSteps: 1, flow: [] },
+    ];
     const player = createPlayer({
       status: 'init',
-      taskStatusList: [{ name: 'login', status: 'init' }],
+      taskStatusList,
     });
     player.run.mockImplementation(async () => {
       player.status = 'done';
-      player.taskStatusList[0].status = 'done';
+      taskStatusList[0].status = 'done';
     });
     vi.mocked(createYamlPlayer).mockResolvedValue(player as any);
     const snapshots: Array<{ player: string; task: string }> = [];
-    const onPlayerSnapshot = vi.fn(
-      ({ player: currentPlayer }: { player: typeof player }) => {
+    const onPlayerSnapshot = vi.fn<YamlPlayerSnapshotHandler>(
+      ({ player: currentPlayer }) => {
         snapshots.push({
           player: currentPlayer.status,
           task: currentPlayer.taskStatusList[0].status,
